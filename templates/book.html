@@ -66,5 +66,72 @@
 
   <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
-</body>
-</html>
+
+<form method="POST" action="/book" class="container mt-4">
+  <div class="mb-3">
+    <label for="email" class="form-label">Email address</label>
+    <input type="email" class="form-control" id="email" name="email" placeholder="name@example.com" required>
+  </div>
+
+  <div class="mb-3">
+    <label for="name" class="form-label">Full Name</label>
+    <input type="text" class="form-control" id="name" name="name" placeholder="Enter your name" required>
+  </div>
+
+  <div class="mb-3">
+    <label for="vehicle" class="form-label">Vehicle Model</label>
+    <input type="text" class="form-control" id="vehicle" name="vehicle" placeholder="e.g. Astra, Cla, A3, Focus" required>
+  </div>
+
+  <div class="input-group mb-3">
+    <label class="input-group-text" for="make">Make</label>
+    <select class="form-select" id="make" name="make" required>
+      <option selected>Select</option>
+      <option value="Bmw">BMW</option>
+      <option value="Audi">Audi</option>
+      <option value="Mercedes-Benz">Mercedes-Benz</option>
+      <option value="Volkswagen">Volkswagen</option>
+      <option value="Ford">Ford</option>
+      <option value="Honda">Honda</option>
+      <option value="Nissan">Nissan</option>
+      <option value="Hyundai">Hyundai</option>
+      <option value="Peugeot">Peugeot</option>
+      <option value="Kia">Kia</option>
+    </select>
+  </div>
+
+  <div class="input-group mb-3">
+  <label class="input-group-text" for="service">Service Type</label>
+  <select class="form-select" id="service" name="service" required>
+    <option value="">Select a Service</option>
+    <option value="Full Service">Full Service</option>
+    <option value="Oil Change">Oil Change</option>
+    <option value="MOT Test">MOT Test</option>
+    <option value="Brake Inspection">Brake Inspection</option>
+    <option value="Tyre Replacement">Tyre Replacement</option>
+    <option value="Clutch Repair">Clutch Repair</option>
+    <option value="Body Work">Body Work</option>
+  </select>
+</div>
+
+
+  <div class="mb-3">
+    <label for="date" class="form-label">Preferred Date</label>
+    <input type="date" id="date" name="date" class="form-control" required>
+  </div>
+
+  <div class="mb-3">
+    <label for="time" class="form-label">Preferred Time</label>
+    <input type="time" id="booking_time" name="booking_time" class="form-control">
+  </div>
+
+  <div class="mb-3">
+    <label for="notes" class="form-label">Additional Notes</label>
+    <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Optional details..."></textarea>
+  </div>
+
+ <div class="text-center mt-4 mb-5">
+  <button type="submit" class="btn btn-primary px-4 py-2">Submit Booking</button>
+</div>
+
+</form>

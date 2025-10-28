@@ -17,9 +17,10 @@ def init_db():
             vehicle TEXT NOT NULL,
             make TEXT NOT NULL,
             service TEXT NOT NULL,
-            additional_notes TEXT,
-            date TEXT NOT NULL
-        )
+            notes TEXT,
+            date TEXT NOT NULL,
+            booking_time TEXT NOT NULL
+        );
     ''')
     conn.commit()
     conn.close()
@@ -48,13 +49,14 @@ def book():
         service = request.form['service']
         notes = request.form['notes']
         date = request.form['date']
+        booking_time = request.form['booking_time']
 
         conn = sqlite3.connect('database.db')
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO bookings (name, email, vehicle, make, service, additional_notes, date)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (name, email, vehicle, make, service, notes, date))
+            INSERT INTO bookings (name, email, vehicle, make, service, additional_notes, date,      booking_time)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (name, email, vehicle, make, service, notes, date, booking_time))
         conn.commit()
         conn.close()
 
