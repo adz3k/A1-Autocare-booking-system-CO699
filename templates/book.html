@@ -49,10 +49,10 @@
       </button>
       <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
         <div class="navbar-nav ms-auto">
-          <a class="nav-link" href="index.html">Home</a>
-          <a class="nav-link" href="about.html">About Us</a>
-          <a class="nav-link" href="book.html">Book Now</a>
-          <a class="nav-link" href="login.html">Admin Login</a>
+         <a class="nav-link" href="{{ url_for('home') }}">Home</a>
+          <a class="nav-link" href="{{ url_for('about') }}">About Us</a>
+          <a class="nav-link" href="{{ url_for('book') }}">Book Now</a>
+          <a class="nav-link" href="{{ url_for('login') }}">Admin Login</a>
         </div>
       </div>
     </div>

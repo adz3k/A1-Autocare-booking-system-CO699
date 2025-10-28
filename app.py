@@ -3,6 +3,9 @@ import sqlite3
 
 app = Flask(__name__)
 
+# -----------------------------
+# DATABASE INITIALIZATION
+# -----------------------------
 def init_db():
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
@@ -14,18 +17,26 @@ def init_db():
             vehicle TEXT NOT NULL,
             make TEXT NOT NULL,
             service TEXT NOT NULL,
-            additional notes TEXT,
+            additional_notes TEXT,
             date TEXT NOT NULL
         )
     ''')
     conn.commit()
     conn.close()
 
+# Initialize database when app starts
 init_db()
 
+# -----------------------------
+# ROUTES
+# -----------------------------
 @app.route('/')
 def home():
     return render_template('index.html')
+
+@app.route('/about')
+def about():
+    return render_template('about.html')
 
 @app.route('/book', methods=['GET', 'POST'])
 def book():
@@ -51,10 +62,16 @@ def book():
     
     return render_template('book.html')
 
+@app.route('/login')
+def login():
+    return render_template('login.html')
+
 @app.route('/confirmation')
 def confirmation():
     return render_template('confirm.html')
 
+# -----------------------------
+# RUN APPLICATION
+# -----------------------------
 if __name__ == '__main__':
-    init_db()
     app.run(debug=True)
