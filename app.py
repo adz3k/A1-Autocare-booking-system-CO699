@@ -54,7 +54,7 @@ def book():
         conn = sqlite3.connect('database.db')
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO bookings (name, email, vehicle, make, service, additional_notes, date,      booking_time)
+            INSERT INTO bookings (name, email, vehicle, make, service, notes, date,      booking_time)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (name, email, vehicle, make, service, notes, date, booking_time))
         conn.commit()
