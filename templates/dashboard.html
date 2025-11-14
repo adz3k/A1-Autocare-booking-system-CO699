@@ -40,23 +40,24 @@
 </head>
 
 <body>
-  <!-- Navigation Bar -->
-  <nav class="navbar navbar-expand-lg">
-    <div class="container-fluid">
-      <a class="navbar-brand text-white fw-bold" href="#">A1 AutoCare</a>
-      <button class="navbar-toggler text-white" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavAltMarkup" aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
-        <div class="navbar-nav ms-auto">
-          <a class="nav-link" href="{{ url_for('home') }}">Home</a>
-          <a class="nav-link" href="{{ url_for('about') }}">About Us</a>
-          <a class="nav-link" href="{{ url_for('book') }}">Book Now</a>
-          <a class="nav-link" href="{{ url_for('login') }}">Admin Login</a>
-        </div>
-      </div>
-    </div>
-  </nav>
+ <nav class="navbar">
+  <ul>
+    <li><a href="{{ url_for('home') }}">Home</a></li>
+    <li><a href="{{ url_for('about') }}">About Us</a></li>
+    <li><a href="{{ url_for('book') }}">Book Now</a></li>
+    
+    {% if session.get('admin_logged_in') %}
+      <!-- Admin-only navigation -->
+      <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+      <li><a href="{{ url_for('dashboard') }}">Edit Bookings</a></li>
+      <li><a href="{{ url_for('dashboard') }}#status">Status</a></li>
+      <li><a href="{{ url_for('logout') }}">Logout</a></li>
+    {% else %}
+      <li><a href="{{ url_for('login') }}">Admin Login</a></li>
+    {% endif %}
+  </ul>
+</nav>
+
 
   <!-- Page Content -->
   <div class="container text-center mt-5 header-text">
@@ -89,9 +90,21 @@
       <td>{{ booking.date }}</td>
       <td>{{ booking.booking_time }}</td>
       <td>
-        <a href="/admin/edit/{{ booking.id }}">Edit</a>
+     <td>
+
+  <form action="/admin/update-status/{{ booking['id'] }}" method="POST">
+    <select name="status" onchange="this.form.submit()">
+      <option value="Pending" {% if booking['status']=='Pending' %}selected{% endif %}>Pending</option>
+      <option value="Confirmed" {% if booking['status']=='Confirmed' %}selected{% endif %}>Confirmed</option>
+      <option value="In Progress" {% if booking['status']=='In Progress' %}selected{% endif %}>In Progress</option>
+      <option value="Completed" {% if booking['status']=='Completed' %}selected{% endif %}>Completed</option>
+      <option value="Cancelled" {% if booking['status']=='Cancelled' %}selected{% endif %}>Cancelled</option>
+    </select>
+  </form>
+</td>
+       <a href="{{ url_for('edit_booking', id=booking['id']) }}">Edit</a>
         <form action="/admin/delete/{{ booking.id }}" method="POST" style="display:inline">
-          <button type="submit">Delete</button>
+         <button type="submit">Delete</button>
         </form>
       </td>
     </tr>

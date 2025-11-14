@@ -21,9 +21,18 @@ def init_db():
             service TEXT NOT NULL,
             notes TEXT,
             date TEXT NOT NULL,
-            booking_time TEXT NOT NULL
+            booking_time TEXT NOT NULL,
+            status TEXT DEFAULT 'PENDING'
         );
     ''')
+
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS admin (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE,
+    password TEXT
+);
+''')
     conn.commit()
     conn.close()
 
@@ -69,9 +78,59 @@ def book():
         conn.commit()
         conn.close()
 
-        return redirect(url_for('confirmation'))
+        return redirect(url_for('confirm'))
     
     return render_template('book.html')
+
+
+@app.route('/admin/edit')
+def edit_bookings():
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM bookings")
+    bookings = cursor.fetchall()
+    conn.close()
+    return render_template('admin_edit.html', bookings=bookings)
+
+@app.route('/admin/edit/<int:id>', methods=['GET', 'POST'])
+def edit_booking(id):
+    conn = sqlite3.connect('database.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    # If form was submitted (POST)
+    if request.method == 'POST':
+        name = request.form['name']
+        email = request.form['email']
+        vehicle = request.form['vehicle']
+        make = request.form['make']
+        service = request.form['service']
+        notes = request.form['notes']
+        date = request.form['date']
+        booking_time = request.form['booking_time']
+        status = request.form['status']
+
+        cursor.execute('''
+            UPDATE bookings
+            SET name=?, email=?, vehicle=?, make=?, service=?, notes=?, date=?, booking_time=?, status=?
+            WHERE id=?
+        ''', (name, email, vehicle, make, service, notes, date, booking_time, status, id))
+
+        conn.commit()
+        conn.close()
+        flash('Booking updated successfully!', 'success')
+        return redirect(url_for('dashboard'))
+
+    # If GET request – load the form with current booking data
+    cursor.execute('SELECT * FROM bookings WHERE id=?', (id,))
+    booking = cursor.fetchone()
+    conn.close()
+
+    if booking is None:
+        flash('Booking not found.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    return render_template('edit.html', booking=booking)
 
 
 # -----------------------------
@@ -108,6 +167,16 @@ def dashboard():
     conn.close()
     return render_template('dashboard.html', bookings=bookings)
 
+@app.route('/admin/delete/<int:id>', methods=['POST'])
+def delete_booking(id):
+    conn = sqlite3.connect('database.db')
+    cur = conn.cursor()
+    cur.execute('DELETE FROM bookings WHERE id=?', (id,))
+    conn.commit()
+    conn.close()
+    return redirect('/admin/dashboard')
+
+
 
 @app.route('/logout')
 def logout():
@@ -115,10 +184,45 @@ def logout():
     flash('You have been logged out.', 'info')
     return redirect(url_for('login'))
 
+@app.route('/confirm', methods=['GET', 'POST'])
+def confirm():
+    if request.method == 'GET':
+        # Retrieve query parameters from redirect
+        name = request.args.get('name')
+        email = request.args.get('email')
+        vehicle = request.args.get('vehicle')
+        make = request.args.get('make')
+        service = request.args.get('service')
+        notes = request.args.get('notes')
+        date = request.args.get('date')
+        booking_time = request.args.get('booking_time')
 
-@app.route('/confirmation')
-def confirmation():
-    return render_template('confirm.html')
+        # Handle direct access
+        if not name:
+            return "Please complete a booking first.", 400
+
+    else:  # POST method fallback (if used directly by form)
+        name = request.form['name']
+        email = request.form['email']
+        vehicle = request.form['vehicle']
+        make = request.form['make']
+        service = request.form['service']
+        notes = request.form.get('notes', '')
+        date = request.form['date']
+        booking_time = request.form['booking_time']
+
+    # Render confirmation page
+    return render_template(
+        'confirm.html',
+        name=name,
+        email=email,
+        vehicle=vehicle,
+        make=make,
+        service=service,
+        notes=notes,
+        date=date,
+        booking_time=booking_time
+    )
 
 
 # -----------------------------
