@@ -3,13 +3,14 @@ import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 import requests
 import math
+from datetime import date, datetime
 
 app = Flask(__name__)
 app.secret_key = 'A1AutoCareSecretKey'
 
 
 # --------------------------------------
-# BRANCH COORDINATES (fake real locations)
+# BRANCH LOCATIONS
 # --------------------------------------
 BRANCHES = [
     {"name": "Milton Keynes", "lat": 52.0406, "lon": -0.7594},
@@ -19,7 +20,7 @@ BRANCHES = [
 
 
 # --------------------------------------
-# INITIALISE DATABASE WITH NEW SCHEMA
+# INITIALISE DATABASE
 # --------------------------------------
 def init_db():
     conn = sqlite3.connect('database.db')
@@ -58,20 +59,16 @@ init_db()
 
 
 # --------------------------------------
-# STATIC ADMIN ACCOUNT
+# ADMIN CREDENTIALS
 # --------------------------------------
 ADMIN_EMAIL = "admin@a1autocare.com"
 ADMIN_PASSWORD_HASH = generate_password_hash("admin123")
 
 
 # --------------------------------------
-# POSTCODE → COORDINATES (Postcodes.io API)
+# POSTCODE TO COORDINATES
 # --------------------------------------
 def get_coordinates_from_postcode(postcode):
-    """
-    Converts UK postcode to (lat, lon).
-    Returns None if invalid.
-    """
     postcode = postcode.replace(" ", "")
 
     try:
@@ -95,10 +92,10 @@ def calculate_distance(lat1, lon1, lat2, lon2):
     d_lon = math.radians(lon2 - lon1)
 
     a = (
-        math.sin(d_lat / 2) ** 2
-        + math.cos(math.radians(lat1))
-        * math.cos(math.radians(lat2))
-        * math.sin(d_lon / 2) ** 2
+        math.sin(d_lat / 2) ** 2 +
+        math.cos(math.radians(lat1)) *
+        math.cos(math.radians(lat2)) *
+        math.sin(d_lon / 2) ** 2
     )
 
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
@@ -106,7 +103,7 @@ def calculate_distance(lat1, lon1, lat2, lon2):
 
 
 # --------------------------------------
-# FIND CLOSEST BRANCH
+# FIND NEAREST BRANCH
 # --------------------------------------
 def find_nearest_branch(user_lat, user_lon):
     nearest = None
@@ -135,24 +132,69 @@ def about():
 
 
 # --------------------------------------
-# CUSTOMER BOOKING
+# BOOKING PAGE
 # --------------------------------------
 @app.route("/book", methods=["GET", "POST"])
 def book():
     if request.method == "POST":
+
+        # ------------------------------
+        # SERVER-SIDE VALIDATION
+        # ------------------------------
+        errors = []
+
+        required_fields = {
+            "name": request.form["name"],
+            "email": request.form["email"],
+            "vehicle": request.form["vehicle"],
+            "make": request.form["make"],
+            "service": request.form["service"],
+            "postcode": request.form["postcode"],
+            "date": request.form["date"],
+            "booking_time": request.form["booking_time"]
+        }
+
+        for field, value in required_fields.items():
+            if not value or value.strip() == "":
+                errors.append(f"{field.capitalize()} is required.")
+
+        # Email validation
+        if "@" not in request.form["email"] or "." not in request.form["email"]:
+            errors.append("Please enter a valid email address.")
+
+        # Date validation
+        try:
+            user_date = datetime.strptime(request.form["date"], "%Y-%m-%d").date()
+            if user_date < date.today():
+                errors.append("Booking date cannot be in the past.")
+        except:
+            errors.append("Invalid date format.")
+
+        # Postcode validation
+        if len(request.form["postcode"].replace(" ", "")) < 5:
+            errors.append("Please enter a valid UK postcode.")
+
+        # If errors exist
+        if errors:
+            for err in errors:
+                flash(err, "danger")
+            return redirect(url_for("book"))
+
+        # ------------------------------
+        # SAFE EXTRACTION AFTER VALIDATION
+        # ------------------------------
         name = request.form["name"]
         email = request.form["email"]
         vehicle = request.form["vehicle"]
         make = request.form["make"]
         service = request.form["service"]
         notes = request.form["notes"]
-        date = request.form["date"]
+        date_val = request.form["date"]
         booking_time = request.form["booking_time"]
         postcode = request.form["postcode"]
 
-        # Convert postcode → lat/lon
+        # Postcode → Coordinates
         coords = get_coordinates_from_postcode(postcode)
-
         branch_name = "Unknown"
         branch_distance = None
 
@@ -162,29 +204,26 @@ def book():
             branch_name = nearest_branch["name"]
             branch_distance = distance_km
         else:
-            flash("Postcode could not be validated. Branch not assigned.", "warning")
+            flash("Invalid postcode. Could not calculate nearest branch.", "warning")
 
-        # Save branch name + distance temporarily for confirmation page
+        # Save in session for confirm page
         session["nearest_branch_name"] = branch_name
         session["nearest_branch_distance"] = branch_distance
 
-        # INSERT BOOKING INTO DATABASE
+        # Insert booking
         conn = sqlite3.connect("database.db")
         c = conn.cursor()
-        c.execute(
-            """
+        c.execute("""
             INSERT INTO bookings 
             (name, email, vehicle, make, service, notes, date, booking_time, postcode, branch)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (name, email, vehicle, make, service, notes, date, booking_time, postcode, branch_name),
-        )
+        """, (name, email, vehicle, make, service, notes, date_val, booking_time, postcode, branch_name))
         conn.commit()
         conn.close()
 
         return redirect(url_for("confirm"))
 
-    return render_template("book.html")
+    return render_template("book.html", min_date=date.today())
 
 
 # --------------------------------------
@@ -251,7 +290,7 @@ def dashboard():
 
 
 # --------------------------------------
-# ADMIN EDIT BOOKING
+# EDIT BOOKING
 # --------------------------------------
 @app.route("/admin/edit/<int:id>", methods=["GET", "POST"])
 def edit_booking(id):
@@ -266,12 +305,11 @@ def edit_booking(id):
         make = request.form["make"]
         service = request.form["service"]
         notes = request.form["notes"]
-        date = request.form["date"]
+        date_val = request.form["date"]
         booking_time = request.form["booking_time"]
         status = request.form["status"]
         postcode = request.form["postcode"]
 
-        # Recalculate nearest branch if postcode changes
         coords = get_coordinates_from_postcode(postcode)
         branch_name = "Unknown"
 
@@ -280,16 +318,13 @@ def edit_booking(id):
             nearest_branch, _ = find_nearest_branch(user_lat, user_lon)
             branch_name = nearest_branch["name"]
 
-        c.execute(
-            """
+        c.execute("""
             UPDATE bookings
             SET name=?, email=?, vehicle=?, make=?, service=?, notes=?, date=?, booking_time=?,
                 status=?, postcode=?, branch=?
             WHERE id=?
-            """,
-            (name, email, vehicle, make, service, notes, date, booking_time,
-             status, postcode, branch_name, id)
-        )
+        """, (name, email, vehicle, make, service, notes, date_val, booking_time,
+              status, postcode, branch_name, id))
 
         conn.commit()
         conn.close()
@@ -297,7 +332,6 @@ def edit_booking(id):
         flash("Booking updated successfully!", "success")
         return redirect(url_for("dashboard"))
 
-    # GET REQUEST – Load booking
     c.execute("SELECT * FROM bookings WHERE id=?", (id,))
     booking = c.fetchone()
     conn.close()
