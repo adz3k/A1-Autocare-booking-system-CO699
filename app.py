@@ -7,289 +7,333 @@ import math
 app = Flask(__name__)
 app.secret_key = 'A1AutoCareSecretKey'
 
-# -----------------------------
-# BRANCH LOCATIONS (FAKE EXAMPLE DATA)
-# -----------------------------
+
+# --------------------------------------
+# BRANCH COORDINATES (fake real locations)
+# --------------------------------------
 BRANCHES = [
     {"name": "Milton Keynes", "lat": 52.0406, "lon": -0.7594},
     {"name": "Wembley", "lat": 51.5530, "lon": -0.2960},
     {"name": "Luton", "lat": 51.8787, "lon": -0.4200},
 ]
 
-# -----------------------------
-# DATABASE INITIALIZATION
-# -----------------------------
+
+# --------------------------------------
+# INITIALISE DATABASE WITH NEW SCHEMA
+# --------------------------------------
 def init_db():
     conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS bookings (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            email TEXT NOT NULL,
-            vehicle TEXT NOT NULL,
-            make TEXT NOT NULL,
-            service TEXT NOT NULL,
-            notes TEXT,
-            date TEXT NOT NULL,
-            booking_time TEXT NOT NULL,
-            postcode TEXT,
-            status TEXT DEFAULT 'PENDING'
-        );
-    ''')
+    c = conn.cursor()
 
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS admin (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE,
-            password TEXT
-        );
-    ''')
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS bookings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL,
+        vehicle TEXT NOT NULL,
+        make TEXT NOT NULL,
+        service TEXT NOT NULL,
+        notes TEXT,
+        date TEXT NOT NULL,
+        booking_time TEXT NOT NULL,
+        postcode TEXT,
+        branch TEXT,
+        status TEXT DEFAULT 'PENDING'
+    );
+    """)
+
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS admin (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE,
+        password TEXT
+    );
+    """)
+
     conn.commit()
     conn.close()
 
+
 init_db()
 
-# -----------------------------
-# STATIC ADMIN CREDENTIALS
-# -----------------------------
-ADMIN_EMAIL = 'admin@a1autocare.com'
-ADMIN_PASSWORD_HASH = generate_password_hash('admin123')
 
-# -----------------------------
-# HELPER FUNCTIONS (POSTCODES + DISTANCE)
-# -----------------------------
-def get_coordinates_from_postcode(postcode: str):
+# --------------------------------------
+# STATIC ADMIN ACCOUNT
+# --------------------------------------
+ADMIN_EMAIL = "admin@a1autocare.com"
+ADMIN_PASSWORD_HASH = generate_password_hash("admin123")
+
+
+# --------------------------------------
+# POSTCODE → COORDINATES (Postcodes.io API)
+# --------------------------------------
+def get_coordinates_from_postcode(postcode):
     """
-    Uses Postcodes.io to convert a UK postcode into latitude/longitude.
-    Returns (lat, lon) or None if invalid.
+    Converts UK postcode to (lat, lon).
+    Returns None if invalid.
     """
-    postcode = postcode.replace(" ", "")  # clean spaces
+    postcode = postcode.replace(" ", "")
+
     try:
         res = requests.get(f"https://api.postcodes.io/postcodes/{postcode}")
         data = res.json()
-        if data.get('status') == 200:
-            lat = data['result']['latitude']
-            lon = data['result']['longitude']
-            return lat, lon
-        else:
-            return None
+
+        if data.get("status") == 200:
+            return data["result"]["latitude"], data["result"]["longitude"]
+        return None
+
     except Exception:
         return None
 
 
+# --------------------------------------
+# HAVERSINE DISTANCE
+# --------------------------------------
 def calculate_distance(lat1, lon1, lat2, lon2):
-    """
-    Haversine formula to calculate distance between two lat/lon points in KM.
-    """
-    R = 6371  # Earth radius in km
+    R = 6371
     d_lat = math.radians(lat2 - lat1)
     d_lon = math.radians(lon2 - lon1)
-    a = (math.sin(d_lat / 2) ** 2 +
-         math.cos(math.radians(lat1)) *
-         math.cos(math.radians(lat2)) *
-         math.sin(d_lon / 2) ** 2)
+
+    a = (
+        math.sin(d_lat / 2) ** 2
+        + math.cos(math.radians(lat1))
+        * math.cos(math.radians(lat2))
+        * math.sin(d_lon / 2) ** 2
+    )
+
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return R * c
 
 
+# --------------------------------------
+# FIND CLOSEST BRANCH
+# --------------------------------------
 def find_nearest_branch(user_lat, user_lon):
-    """
-    Loop through BRANCHES and return (branch_dict, distance_km)
-    for the closest branch.
-    """
     nearest = None
-    shortest = float('inf')
+    shortest = float("inf")
 
     for branch in BRANCHES:
-        dist = calculate_distance(user_lat, user_lon, branch['lat'], branch['lon'])
+        dist = calculate_distance(user_lat, user_lon, branch["lat"], branch["lon"])
         if dist < shortest:
             shortest = dist
             nearest = branch
 
-    if nearest is None:
-        return None, None
-    return nearest, shortest
+    return nearest, round(shortest, 1)
 
-# -----------------------------
+
+# --------------------------------------
 # ROUTES
-# -----------------------------
-@app.route('/')
+# --------------------------------------
+@app.route("/")
 def home():
-    return render_template('index.html')
+    return render_template("index.html")
 
-@app.route('/about')
+
+@app.route("/about")
 def about():
-    return render_template('about.html')
+    return render_template("about.html")
 
 
-@app.route('/book', methods=['GET', 'POST'])
+# --------------------------------------
+# CUSTOMER BOOKING
+# --------------------------------------
+@app.route("/book", methods=["GET", "POST"])
 def book():
-    if request.method == 'POST':
-        name = request.form['name']
-        email = request.form['email']
-        vehicle = request.form['vehicle']
-        make = request.form['make']
-        service = request.form['service']
-        notes = request.form['notes']
-        date = request.form['date']
-        booking_time = request.form['booking_time']
-        postcode = request.form['postcode']
+    if request.method == "POST":
+        name = request.form["name"]
+        email = request.form["email"]
+        vehicle = request.form["vehicle"]
+        make = request.form["make"]
+        service = request.form["service"]
+        notes = request.form["notes"]
+        date = request.form["date"]
+        booking_time = request.form["booking_time"]
+        postcode = request.form["postcode"]
 
-        # --- POSTCODES.IO + NEAREST BRANCH LOGIC ---
-        nearest_branch_name = "Unknown"
-        nearest_branch_distance = None
-
+        # Convert postcode → lat/lon
         coords = get_coordinates_from_postcode(postcode)
+
+        branch_name = "Unknown"
+        branch_distance = None
+
         if coords:
             user_lat, user_lon = coords
-            branch, distance_km = find_nearest_branch(user_lat, user_lon)
-            if branch:
-                nearest_branch_name = branch['name']
-                nearest_branch_distance = round(distance_km, 1)
+            nearest_branch, distance_km = find_nearest_branch(user_lat, user_lon)
+            branch_name = nearest_branch["name"]
+            branch_distance = distance_km
         else:
-            flash('We could not validate your postcode. Nearest branch not calculated.', 'warning')
+            flash("Postcode could not be validated. Branch not assigned.", "warning")
 
-        # Store nearest branch info in session for confirmation page
-        session['nearest_branch_name'] = nearest_branch_name
-        session['nearest_branch_distance'] = nearest_branch_distance
+        # Save branch name + distance temporarily for confirmation page
+        session["nearest_branch_name"] = branch_name
+        session["nearest_branch_distance"] = branch_distance
 
-        # Save booking to DB
-        conn = sqlite3.connect('database.db')
-        cursor = conn.cursor()
-        cursor.execute('''
-    INSERT INTO bookings (name, email, vehicle, make, service, notes, date, booking_time, postcode)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-''', (name, email, vehicle, make, service, notes, date, booking_time, postcode))
-
+        # INSERT BOOKING INTO DATABASE
+        conn = sqlite3.connect("database.db")
+        c = conn.cursor()
+        c.execute(
+            """
+            INSERT INTO bookings 
+            (name, email, vehicle, make, service, notes, date, booking_time, postcode, branch)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (name, email, vehicle, make, service, notes, date, booking_time, postcode, branch_name),
+        )
         conn.commit()
         conn.close()
 
-        return redirect(url_for('confirm'))
+        return redirect(url_for("confirm"))
 
-    return render_template('book.html')
+    return render_template("book.html")
 
 
-@app.route('/confirm')
+# --------------------------------------
+# CONFIRMATION PAGE
+# --------------------------------------
+@app.route("/confirm")
 def confirm():
-    conn = sqlite3.connect('database.db')
+    conn = sqlite3.connect("database.db")
     conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
+    c = conn.cursor()
 
-    cursor.execute("SELECT * FROM bookings ORDER BY id DESC LIMIT 1")
-    booking = cursor.fetchone()
+    c.execute("SELECT * FROM bookings ORDER BY id DESC LIMIT 1")
+    booking = c.fetchone()
     conn.close()
 
     if booking is None:
         return "Please complete a booking first.", 400
 
-    nearest_branch_name = session.get('nearest_branch_name', "Unknown")
-    nearest_branch_distance = session.get('nearest_branch_distance', None)
-
     return render_template(
         "confirm.html",
         booking=booking,
-        nearest_branch_name=nearest_branch_name,
-        nearest_branch_distance=nearest_branch_distance
+        nearest_branch_name=session.get("nearest_branch_name"),
+        nearest_branch_distance=session.get("nearest_branch_distance"),
     )
 
 
-# -----------------------------
-# LOGIN / ADMIN / DASHBOARD
-# -----------------------------
-@app.route('/login', methods=['GET', 'POST'])
+# --------------------------------------
+# LOGIN
+# --------------------------------------
+@app.route("/login", methods=["GET", "POST"])
 def login():
-    if request.method == 'POST':
-        email = request.form['email']
-        password = request.form['password']
+    if request.method == "POST":
+        email = request.form["email"]
+        password = request.form["password"]
 
         if email == ADMIN_EMAIL and check_password_hash(ADMIN_PASSWORD_HASH, password):
-            session['admin_logged_in'] = True
-            flash('Login successful!', 'success')
-            return redirect(url_for('dashboard'))
-        else:
-            flash('Invalid credentials. Please try again.', 'danger')
-            return redirect(url_for('login'))
+            session["admin_logged_in"] = True
+            flash("Login successful!", "success")
+            return redirect(url_for("dashboard"))
 
-    return render_template('login.html')
+        flash("Invalid credentials.", "danger")
+        return redirect(url_for("login"))
+
+    return render_template("login.html")
 
 
-@app.route('/admin/dashboard')
+# --------------------------------------
+# ADMIN DASHBOARD
+# --------------------------------------
+@app.route("/admin/dashboard")
 def dashboard():
-    if not session.get('admin_logged_in'):
-        flash('Please login first.', 'warning')
-        return redirect(url_for('login'))
+    if not session.get("admin_logged_in"):
+        flash("Please login first.", "warning")
+        return redirect(url_for("login"))
 
-    conn = sqlite3.connect('database.db')
+    conn = sqlite3.connect("database.db")
     conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM bookings')
-    bookings = cursor.fetchall()
+    c = conn.cursor()
+    c.execute("SELECT * FROM bookings")
+    bookings = c.fetchall()
     conn.close()
 
-    return render_template('dashboard.html', bookings=bookings)
+    return render_template("dashboard.html", bookings=bookings)
 
 
-@app.route('/admin/edit/<int:id>', methods=['GET', 'POST'])
+# --------------------------------------
+# ADMIN EDIT BOOKING
+# --------------------------------------
+@app.route("/admin/edit/<int:id>", methods=["GET", "POST"])
 def edit_booking(id):
-    conn = sqlite3.connect('database.db')
+    conn = sqlite3.connect("database.db")
     conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
+    c = conn.cursor()
 
-    if request.method == 'POST':
-        name = request.form['name']
-        email = request.form['email']
-        vehicle = request.form['vehicle']
-        make = request.form['make']
-        service = request.form['service']
-        notes = request.form['notes']
-        date = request.form['date']
-        booking_time = request.form['booking_time']
-        status = request.form['status']
+    if request.method == "POST":
+        name = request.form["name"]
+        email = request.form["email"]
+        vehicle = request.form["vehicle"]
+        make = request.form["make"]
+        service = request.form["service"]
+        notes = request.form["notes"]
+        date = request.form["date"]
+        booking_time = request.form["booking_time"]
+        status = request.form["status"]
+        postcode = request.form["postcode"]
 
-        cursor.execute('''
+        # Recalculate nearest branch if postcode changes
+        coords = get_coordinates_from_postcode(postcode)
+        branch_name = "Unknown"
+
+        if coords:
+            user_lat, user_lon = coords
+            nearest_branch, _ = find_nearest_branch(user_lat, user_lon)
+            branch_name = nearest_branch["name"]
+
+        c.execute(
+            """
             UPDATE bookings
-            SET name=?, email=?, vehicle=?, make=?, service=?, notes=?, date=?, booking_time=?, status=?
+            SET name=?, email=?, vehicle=?, make=?, service=?, notes=?, date=?, booking_time=?,
+                status=?, postcode=?, branch=?
             WHERE id=?
-        ''', (name, email, vehicle, make, service, notes, date, booking_time, status, id))
+            """,
+            (name, email, vehicle, make, service, notes, date, booking_time,
+             status, postcode, branch_name, id)
+        )
 
         conn.commit()
         conn.close()
-        flash('Booking updated successfully!', 'success')
-        return redirect(url_for('dashboard'))
 
-        # no return below this
+        flash("Booking updated successfully!", "success")
+        return redirect(url_for("dashboard"))
 
-    cursor.execute("SELECT * FROM bookings WHERE id=?", (id,))
-    booking = cursor.fetchone()
+    # GET REQUEST – Load booking
+    c.execute("SELECT * FROM bookings WHERE id=?", (id,))
+    booking = c.fetchone()
     conn.close()
 
-    if booking is None:
-        flash('Booking not found.', 'danger')
-        return redirect(url_for('dashboard'))
+    if not booking:
+        flash("Booking not found.", "danger")
+        return redirect(url_for("dashboard"))
 
-    return render_template('edit.html', booking=booking)
+    return render_template("edit.html", booking=booking)
 
 
-@app.route('/admin/delete/<int:id>', methods=['POST'])
+# --------------------------------------
+# DELETE BOOKING
+# --------------------------------------
+@app.route("/admin/delete/<int:id>", methods=["POST"])
 def delete_booking(id):
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM bookings WHERE id=?", (id,))
+    conn = sqlite3.connect("database.db")
+    c = conn.cursor()
+    c.execute("DELETE FROM bookings WHERE id=?", (id,))
     conn.commit()
     conn.close()
-    return redirect(url_for('dashboard'))
+    return redirect(url_for("dashboard"))
 
 
-@app.route('/logout')
+# --------------------------------------
+# LOGOUT
+# --------------------------------------
+@app.route("/logout")
 def logout():
-    session.pop('admin_logged_in', None)
-    flash('You have been logged out.', 'info')
-    return redirect(url_for('login'))
+    session.pop("admin_logged_in", None)
+    flash("You have been logged out.", "info")
+    return redirect(url_for("login"))
 
 
-# -----------------------------
-# RUN APP
-# -----------------------------
-if __name__ == '__main__':
+# --------------------------------------
+# START APPLICATION
+# --------------------------------------
+if __name__ == "__main__":
     app.run(debug=True)

@@ -1,108 +1,144 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>A1 AutoCare | Admin Edit</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Booking | A1 AutoCare</title>
 
-  <!-- Bootstrap CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" 
-        rel="stylesheet" 
-        integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" 
-        crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
 
-  <!-- Custom Font (optional) -->
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
-
-  <style>
-    body {
-      font-family: 'Poppins', sans-serif;
-      background-color: #F5F5F5;
-      color: #222;
-      margin: 0;
-      padding: 0;
-    }
-    .navbar {
-      background-color: #1A1A1A;
-    }
-    .navbar a {
-      color: white !important;
-      margin-right: 20px;
-    }
-    .navbar a:hover {
-      color: #FF9800 !important;
-    }
-    .header-text {
-      text-align: center;
-      margin-top: 40px;
-    }
-  </style>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f5f5f5;
+        }
+        .container-box {
+            background: white;
+            padding: 30px;
+            margin-top: 40px;
+            border-radius: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .navbar {
+            background-color: #1A1A1A;
+        }
+        .navbar a {
+            color: white !important;
+            margin-right: 20px;
+        }
+        .navbar a:hover {
+            color: #FF9800 !important;
+        }
+    </style>
 </head>
 
 <body>
-  <!-- Navigation Bar -->
-  <nav class="navbar">
-  <ul>
-    <li><a href="{{ url_for('home') }}">Home</a></li>
-    <li><a href="{{ url_for('about') }}">About Us</a></li>
-    <li><a href="{{ url_for('book') }}">Book Now</a></li>
-    
-    {% if session.get('admin_logged_in') %}
-      <!-- Admin-only navigation -->
-      <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
-      <li><a href="{{ url_for('dashboard') }}#bookings">Edit Bookings</a></li>
-      <li><a href="{{ url_for('dashboard') }}#status">Status</a></li>
-      <li><a href="{{ url_for('logout') }}">Logout</a></li>
-    {% else %}
-      <li><a href="{{ url_for('login') }}">Admin Login</a></li>
-    {% endif %}
-  </ul>
+
+<!-- NAVBAR -->
+<nav class="navbar navbar-expand-lg">
+    <div class="container-fluid">
+        <a class="navbar-brand fw-bold text-white" href="#">A1 AutoCare Admin</a>
+        <div class="ms-auto">
+            <a class="nav-link d-inline text-white" href="{{ url_for('dashboard') }}">Dashboard</a>
+            <a class="nav-link d-inline text-white" href="{{ url_for('logout') }}">Logout</a>
+        </div>
+    </div>
 </nav>
 
-  <!-- Page Content -->
-  <div class="container text-center mt-5 header-text">
-    <h1>Admin Edit</h1>
-    <h3 class="text-secondary">Where reliability meets expertise</h3>
-  </div>
+<div class="container">
+    <div class="container-box">
 
-  <!-- Bootstrap JS -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+        <h2 class="text-center mb-4">Edit Booking</h2>
 
+        <form action="{{ url_for('edit_booking', id=booking['id']) }}" method="POST">
 
-<form method="POST" action="{{ url_for('edit_booking', id=booking['id']) }}">
+            <!-- Name + Email -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Customer Name</label>
+                    <input type="text" class="form-control" name="name" value="{{ booking['name'] }}" required>
+                </div>
 
-  <label>Name:</label>
-  <input type="text" name="name" value="{{ booking['name'] }}">
-  
-  <label>Email:</label>
-  <input type="text" name="email" value="{{ booking['email'] }}">
+                <div class="col-md-6">
+                    <label class="form-label">Email</label>
+                    <input type="email" class="form-control" name="email" value="{{ booking['email'] }}" required>
+                </div>
+            </div>
 
-  <label>Service:</label>
-  <input type="text" name="service" value="{{ booking['service'] }}">
+            <!-- Vehicle + Make -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Vehicle</label>
+                    <input type="text" class="form-control" name="vehicle" value="{{ booking['vehicle'] }}" required>
+                </div>
 
-  <label>Status:</label>
-  <select name="status">
-    <option value="Pending" {% if booking['status']=='Pending' %}selected{% endif %}>Pending</option>
-    <option value="Confirmed" {% if booking['status']=='Confirmed' %}selected{% endif %}>Confirmed</option>
-    <option value="In Progress" {% if booking['status']=='In Progress' %}selected{% endif %}>In Progress</option>
-    <option value="Completed" {% if booking['status']=='Completed' %}selected{% endif %}>Completed</option>
-  </select>
+                <div class="col-md-6">
+                    <label class="form-label">Make</label>
+                    <input type="text" class="form-control" name="make" value="{{ booking['make'] }}" required>
+                </div>
+            </div>
 
-  
-  <label>vehicle:</label>
-  <input type="vehicle" name="vehicle" value="{{ booking['vehicle'] }}">
+            <!-- Service + Status -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Service</label>
+                    <input type="text" class="form-control" name="service" value="{{ booking['service'] }}" required>
+                </div>
 
-  <label>make:</label>
-  <input type="make" name="make" value="{{ booking['make'] }}">
+                <div class="col-md-6">
+                    <label class="form-label">Booking Status</label>
+                    <select class="form-select" name="status" required>
+                        <option value="Pending" {% if booking['status']=="Pending" %}selected{% endif %}>Pending</option>
+                        <option value="In Progress" {% if booking['status']=="In Progress" %}selected{% endif %}>In Progress</option>
+                        <option value="Completed" {% if booking['status']=="Completed" %}selected{% endif %}>Completed</option>
+                        <option value="Cancelled" {% if booking['status']=="Cancelled" %}selected{% endif %}>Cancelled</option>
+                    </select>
+                </div>
+            </div>
 
-  <label>Date:</label>
-  <input type="date" name="date" value="{{ booking['date'] }}">
+            <!-- Date + Time -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Booking Date</label>
+                    <input type="date" class="form-control" name="date" value="{{ booking['date'] }}" required>
+                </div>
 
-  <label>Time:</label>
-  <input type="time" name="booking_time" value="{{ booking['booking_time'] }}">
+                <div class="col-md-6">
+                    <label class="form-label">Booking Time</label>
+                    <input type="time" class="form-control" name="booking_time" value="{{ booking['booking_time'] }}" required>
+                </div>
+            </div>
 
-    <label>notes:</label>
-  <input type="notes" name="notes" value="{{ booking['notes'] }}">
+            <!-- Postcode + Assigned Branch -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Postcode</label>
+                    <input type="text" class="form-control" name="postcode" value="{{ booking['postcode'] }}" required>
+                </div>
 
-  <button type="submit">Save Changes</button>
-</form>
+                <div class="col-md-6">
+                    <label class="form-label">Nearest Branch (Auto)</label>
+                    <input type="text" class="form-control" name="branch" value="{{ booking['branch'] }}" readonly>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="mb-3">
+                <label class="form-label">Customer Notes</label>
+                <textarea class="form-control" name="notes" rows="3">{{ booking['notes'] }}</textarea>
+            </div>
+
+            <!-- Buttons -->
+            <div class="text-center">
+                <button type="submit" class="btn btn-warning px-4">Save Changes</button>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-secondary px-4">Cancel</a>
+            </div>
+
+        </form>
+
+    </div>
+</div>
+
+</body>
+</html>
