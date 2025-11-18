@@ -1,115 +1,168 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>A1 AutoCare | Admin Login</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard | A1 AutoCare</title>
 
-  <!-- Bootstrap CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" 
-        rel="stylesheet" 
-        integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" 
-        crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
 
-  <!-- Custom Font (optional) -->
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
-
-  <style>
-    body {
-      font-family: 'Poppins', sans-serif;
-      background-color: #F5F5F5;
-      color: #222;
-      margin: 0;
-      padding: 0;
-    }
-    .navbar {
-      background-color: #1A1A1A;
-    }
-    .navbar a {
-      color: white !important;
-      margin-right: 20px;
-    }
-    .navbar a:hover {
-      color: #FF9800 !important;
-    }
-    .header-text {
-      text-align: center;
-      margin-top: 40px;
-    }
-  </style>
+    <style>
+        body {
+            background-color: #f4f4f4;
+            font-family: 'Poppins', sans-serif;
+        }
+        .dashboard-container {
+            margin-top: 40px;
+        }
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            white-space: nowrap; 
+        }
+        .filter-box {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        th, td {
+            vertical-align: middle !important;
+        }
+    </style>
 </head>
 
 <body>
- <nav class="navbar">
-  <ul>
-    <li><a href="{{ url_for('home') }}">Home</a></li>
-    <li><a href="{{ url_for('about') }}">About Us</a></li>
-    <li><a href="{{ url_for('book') }}">Book Now</a></li>
-    
-    {% if session.get('admin_logged_in') %}
-      <!-- Admin-only navigation -->
-      <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
-      <li><a href="{{ url_for('dashboard') }}">Edit Bookings</a></li>
-      <li><a href="{{ url_for('dashboard') }}#status">Status</a></li>
-      <li><a href="{{ url_for('logout') }}">Logout</a></li>
-    {% else %}
-      <li><a href="{{ url_for('login') }}">Admin Login</a></li>
-    {% endif %}
-  </ul>
+
+<nav class="navbar navbar-dark bg-dark">
+    <div class="container-fluid">
+        <span class="navbar-brand fw-bold">A1 AutoCare | Admin Dashboard</span>
+        <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm">Logout</a>
+    </div>
 </nav>
 
+<div class="container dashboard-container">
 
-  <!-- Page Content -->
-  <div class="container text-center mt-5 header-text">
-    <h1>Admin Dashboard</h1>
-    <h3 class="text-secondary">Where reliability meets expertise</h3>
-  </div>
+    <h2 class="fw-bold mb-3">Manage Bookings</h2>
 
-  <table>
-  <thead>
-    <tr>
-      <th>name</th>
-      <th>email</th>
-      <th>vehicle</th>
-      <th>make</th>
-      <th>service</th>
-     <th>notes</th>
-     <th>Postcode</th>
-      <th>dates</th>
-      <th>booking time</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for booking in bookings %}
-    <tr>
-      <td>{{ booking.name }}</td>
-      <td>{{ booking.email }}</td>
-      <td>{{ booking.vehicle }}</td>
-      <td>{{ booking.make }}</td>
-      <td>{{ booking.service }}</td>
-      <td>{{ booking.notes }}</td>
-      <td>{{ booking['postcode'] }}</td>
-      <td>{{ booking.date }}</td>
-      <td>{{ booking.booking_time }}</td>
-      <td>
-     <td>
+    <!-- SEARCH + STATUS FILTERS -->
+    <div class="filter-box mb-4">
+        <form method="get" action="{{ url_for('dashboard') }}" class="row g-2">
 
-  <form action="/admin/update-status/{{ booking['id'] }}" method="POST">
-    <select name="status" onchange="this.form.submit()">
-      <option value="Pending" {% if booking['status']=='Pending' %}selected{% endif %}>Pending</option>
-      <option value="Confirmed" {% if booking['status']=='Confirmed' %}selected{% endif %}>Confirmed</option>
-      <option value="In Progress" {% if booking['status']=='In Progress' %}selected{% endif %}>In Progress</option>
-      <option value="Completed" {% if booking['status']=='Completed' %}selected{% endif %}>Completed</option>
-      <option value="Cancelled" {% if booking['status']=='Cancelled' %}selected{% endif %}>Cancelled</option>
-    </select>
-  </form>
-</td>
-       <a href="{{ url_for('edit_booking', id=booking['id']) }}">Edit</a>
-        <form action="/admin/delete/{{ booking.id }}" method="POST" style="display:inline">
-         <button type="submit">Delete</button>
+            <!-- Search Bar -->
+            <div class="col-md-6">
+                <input 
+                    type="text" 
+                    name="search" 
+                    class="form-control" 
+                    placeholder="Search by name, email, vehicle, make, service, postcode, branch"
+                    value="{{ search or '' }}"
+                >
+            </div>
+
+            <!-- Status Filter -->
+            <div class="col-md-3">
+                <select name="status" class="form-select">
+                    <option value="ALL" {% if filter_status == 'ALL' %}selected{% endif %}>All Statuses</option>
+                    <option value="PENDING" {% if filter_status == 'PENDING' %}selected{% endif %}>Pending</option>
+                    <option value="IN PROGRESS" {% if filter_status == 'IN PROGRESS' %}selected{% endif %}>In Progress</option>
+                    <option value="COMPLETED" {% if filter_status == 'COMPLETED' %}selected{% endif %}>Completed</option>
+                    <option value="CANCELLED" {% if filter_status == 'CANCELLED' %}selected{% endif %}>Cancelled</option>
+                </select>
+            </div>
+
+            <!-- Buttons -->
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary w-100">Apply</button>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-secondary w-100">Reset</a>
+            </div>
+
         </form>
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+    </div>
+
+    <!-- TABLE -->
+    <div class="table-responsive">
+        <table class="table table-striped table-hover align-middle">
+
+            <thead class="table-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Vehicle</th>
+                    <th>Make</th>
+                    <th>Service</th>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Postcode</th>
+                    <th>Branch</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for b in bookings %}
+                <tr>
+                    <td>{{ b.id }}</td>
+                    <td class="text-nowrap">{{ b.name }}</td>
+                    <td class="text-nowrap">{{ b.email }}</td>
+                    <td>{{ b.vehicle }}</td>
+                    <td>{{ b.make }}</td>
+                    <td>{{ b.service }}</td>
+                    <td>{{ b.date }}</td>
+                    <td>{{ b.booking_time }}</td>
+                    <td class="text-nowrap">{{ b.postcode }}</td>
+                    <td>{{ b.branch }}</td>
+
+                    <!-- STATUS COLUMN -->
+                    <td class="text-center">
+                        {% if b.status == 'PENDING' %}
+                            <span class="status-badge bg-warning text-dark">Pending</span>
+
+                        {% elif b.status == 'IN PROGRESS' %}
+                            <span class="status-badge bg-info text-dark">In Progress</span>
+
+                        {% elif b.status == 'COMPLETED' %}
+                            <span class="status-badge bg-success">Completed</span>
+
+                        {% elif b.status == 'CANCELLED' %}
+                            <span class="status-badge bg-danger">Cancelled</span>
+
+                        {% else %}
+                            <span class="status-badge bg-secondary">Unknown</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- ACTIONS COLUMN -->
+                    <td class="text-center" style="white-space: nowrap;">
+                        <a href="{{ url_for('edit_booking', id=b.id) }}" 
+                           class="btn btn-sm btn-primary me-1">
+                            Edit
+                        </a>
+
+                        <form action="{{ url_for('delete_booking', id=b.id) }}" 
+                              method="POST" 
+                              style="display:inline;">
+                            <button class="btn btn-sm btn-danger"
+                                    onclick="return confirm('Delete this booking?');">
+                                Delete
+                            </button>
+                        </form>
+                    </td>
+
+                </tr>
+                {% endfor %}
+            </tbody>
+
+        </table>
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+
+</body>
+</html>
